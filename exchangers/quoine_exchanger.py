@@ -1,20 +1,18 @@
-"""各取引所クラスが継承する抽象クラス."""
+"""QUOINE取引所のクラス."""
 
-import abc
+import time
 
-import json
+from configparser import ConfigParser
 
-import requests
+from jwt import jwt
+
+from .abstract_exchanger import AbstractExchanger
 
 
-class AbstractExchanger(abc.ABC):
-    """
-    Abstract Exchanger.
+class QuoineExchanger(AbstractExchanger):
+    """Quoine(コインエクスチェンジ)と取引で行うためのクラス."""
 
-    すべてのExchangerクラスが以下の関数をもつことを強制するための抽象クラス.
-    """
-
-    exchanger_name = None
+    exchanger_name = 'Quoine'
 
     def __init__(self):
         """
@@ -25,69 +23,56 @@ class AbstractExchanger(abc.ABC):
         api_key : str, default : None
         api_secret : str, default : None
         """
-        self.api_url = None
-        self.api_key = None
-        self.api_secret = None
-        self.api_version = None
+        config = ConfigParser()
+        config.read('../config.ini', 'utf-8')
 
-    @abc.abstractmethod
-    def _headers(self, **params):
+        self.api_url = 'https://api.quoine.com'
+        self.api_key = config.get(self.exchanger_name, 'api_key')
+        self.api_secret = config.get(self.exchanger_name, 'api_key')
+        self.api_version = 2
+
+    def _headers(self, endpoint):
         """
         各取引所のAPIにrequestする際のヘッダーを生成し返すメソッド.
 
         Parameters
         ----------
-        params : dict
-            各取引所で値が違う.
+        endpoint : str, default None
 
         Return
         ------
         headers : dict,
             ex) requests.get(url, headers)
         """
-        pass
+        auth_payload = {
+            'path': endpoint,
+            'nonce': str(int(time.time())),
+            'token_id': self.api_key
+        }
+        access_sign = jwt.encode(auth_payload, self.api_secret, algorithm='HS256')
+        header = {
+            'X-Quoine-API-Version': self.api_version,
+            'X-Quoine-Auth': access_sign,
+            'Content-Type': 'application/json'
+        }
+        return header
 
-    def _api_request(self, endpoint, method='GET', params=None, headers=None):
+    def get_markets(self):
         """
-        各取引所のAPIにリクエストを送信するメソッド.
-
-        Parameters
-        ----------
-        endpoint : str
-            APIのエンドポイント.
-        method : str, default 'GET'
-        params : dict
-            リクエストのパラメータを指定.
-        headers : dict
-            リクエストのヘッダーを指定.self._headersの戻り値を使用するように.
+        取引所でのマーケット一覧を表示.
 
         Return
         ------
-        response : dict
+        [
+            {"product_code": "BTC/JPY"},
+            {"product_code": "ETH/BTC"},
+            ...
+        ]
         """
-        url = self.api_url + endpoint
+        endpoint = '/products'
+        response_dict = self._api_request(endpoint, 'GET', None, self._headers(endpoint))
+        return response_dict
 
-        # 取引所のAPIにリクエストを送信.
-        try:
-            with requests.Session() as s:
-                s.headers.update(headers)
-
-                if method == "GET":
-                    response = s.get(url, params=params)
-                else:  # method == "POST":
-                    response = s.post(url, data=json.dumps(params))
-        except requests.RequestException as e:
-            print(e)
-            raise e
-
-        return response.json()
-
-    @abc.abstractmethod
-    def get_markets(self):
-        """取引所でのマーケット一覧を表示."""
-        pass
-
-    @abc.abstractmethod
     def get_board(self, product_code='BTC/JPY', count=100):
         """
         取引所の板情報を取得.
@@ -96,8 +81,6 @@ class AbstractExchanger(abc.ABC):
         ----------
         product_code : str, default 'BTC/JPY'
             通貨の指定.
-        count : int, default 100
-            結果の個数を指定.
 
         Return
         ------
@@ -114,9 +97,17 @@ class AbstractExchanger(abc.ABC):
             ]
         }
         """
-        pass
+        QUOINE_PRODUCT_IDS = {
+            'BTC/JPY': 5,
+        }
+        product_id = QUOINE_PRODUCT_IDS[product_code]
+        endpoint = '/products/{id}/price_levels'.format(id=product_id)
+        params = {
+            'full': count
+        }
+        response_dict = self._api_request(endpoint, 'GET', params, self._headers(endpoint))
+        return response_dict
 
-    @abc.abstractmethod
     def get_ticker(self, product_code='BTC/JPY'):
         """
         引数で指定した通貨のTickerを取得.
@@ -128,7 +119,6 @@ class AbstractExchanger(abc.ABC):
         """
         pass
 
-    @abc.abstractmethod
     def get_execution_log(self, product_code='BTC/JPY', count=100):
         """
         歩み値を取得.
