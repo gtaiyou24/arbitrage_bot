@@ -1,7 +1,7 @@
 """呼び出すExchangerモジュールを定義."""
 
-from . import BitFlyerLightningExchanger
-from . import QuoineExchanger
+from .bitflyer_lightning_exchanger import BitFlyerLightningExchanger
+from .quoine_exchanger import QuoineExchanger
 
 
 __all__ = [

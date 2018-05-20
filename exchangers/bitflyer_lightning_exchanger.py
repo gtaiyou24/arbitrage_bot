@@ -1,18 +1,14 @@
 """bitFlyer Lightning取引所クラス."""
 
 import hashlib
-
 import hmac
-
 import json
-
 import time
-
 import urllib
 
-from configparser import ConfigParser
-
 from .abstract_exchanger import AbstractExchanger
+
+from configs.exchanger_config import get_config
 
 
 class BitFlyerLightningExchanger(AbstractExchanger):
@@ -29,12 +25,9 @@ class BitFlyerLightningExchanger(AbstractExchanger):
         api_key : str, default : None
         api_secret : str, default : None
         """
-        config = ConfigParser()
-        config.read('../config.ini', 'utf-8')
-
         self.api_url = 'https://api.bitflyer.jp/v1'
-        self.api_key = config.get(self.exchanger_name, 'api_key')
-        self.api_secret = config.get(self.exchanger_name, 'api_key')
+        self.api_key = get_config(self.exchanger_name, 'api_key')
+        self.api_secret = get_config(self.exchanger_name, 'api_key')
         self.api_version = None
 
     def _headers(self, endpoint=None, method='GET', params={}):
@@ -51,6 +44,7 @@ class BitFlyerLightningExchanger(AbstractExchanger):
         headers : dict,
             ex) requests.get(url, headers)
         """
+        body = ""
         if method == "POST":
             body = json.dumps(params)
         else:

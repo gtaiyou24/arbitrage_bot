@@ -2,11 +2,11 @@
 
 import time
 
-from configparser import ConfigParser
-
-from jwt import jwt
+import jwt
+import pandas as pd
 
 from .abstract_exchanger import AbstractExchanger
+from configs.exchanger_config import get_config
 
 
 class QuoineExchanger(AbstractExchanger):
@@ -23,13 +23,10 @@ class QuoineExchanger(AbstractExchanger):
         api_key : str, default : None
         api_secret : str, default : None
         """
-        config = ConfigParser()
-        config.read('../config.ini', 'utf-8')
-
         self.api_url = 'https://api.quoine.com'
-        self.api_key = config.get(self.exchanger_name, 'api_key')
-        self.api_secret = config.get(self.exchanger_name, 'api_key')
-        self.api_version = 2
+        self.api_key = get_config(self.exchanger_name, 'api_key')
+        self.api_secret = get_config(self.exchanger_name, 'api_key')
+        self.api_version = '2'
 
     def _headers(self, endpoint):
         """
@@ -106,7 +103,16 @@ class QuoineExchanger(AbstractExchanger):
             'full': count
         }
         response_dict = self._api_request(endpoint, 'GET', params, self._headers(endpoint))
-        return response_dict
+
+        board = {
+            "bids": list(
+                pd.DataFrame(response_dict['buy_price_levels'], columns=['price', 'size']).T.to_dict().values()
+            ),
+            "asks": list(
+                pd.DataFrame(response_dict['sell_price_levels'], columns=['price', 'size']).T.to_dict().values()
+            )
+        }
+        return board
 
     def get_ticker(self, product_code='BTC/JPY'):
         """
