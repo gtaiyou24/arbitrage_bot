@@ -103,13 +103,14 @@ class AbstractExchanger(abc.ABC):
         ------
         {
             "bids": [
-                {"price": 1000000, "size": 0.02},
-                {"price": 9950000, "size": 0.05},
+                # [price, quantity]
+                [1000000, 0.02],
+                [9950000, 0.05],
                 ...
             ],
             "asks": [
-                {"price": 1005000, "size": 0.3},
-                {"price": 1060000, "size": 0.05},
+                [1005000, 0.3],
+                [1060000, 0.05],
                 ...
             ]
         }
@@ -152,5 +153,41 @@ class AbstractExchanger(abc.ABC):
             },
             ...,
         ]
+        """
+        pass
+
+    @abc.abstractmethod
+    def calc_cash_trading_cost(self, product_code='BTC/JPY', side='maker', x=0.0, price=0.0, **params):
+        """
+        現物取引による費用を算出.
+
+        Parameter
+        ---------
+        product_code: str, default 'BTC/JPY'
+            通貨の指定.
+        side : str, 'maker' or 'taker'
+            購入か売却かを指定.
+        x : float
+            取引数量.
+        price : float
+            取引価格.
+        """
+        pass
+
+    @abc.abstractmethod
+    def calc_margin_trading_cost(self, product_code='BTC/JPY', side='maker', x=0.0, price=0.0, **params):
+        """
+        証拠金取引(信用取引)による費用を算出.
+
+        Parameter
+        ---------
+        product_code: str, default 'BTC/JPY'
+            通貨の指定.
+        side : str, 'maker' or 'taker'
+            購入か売却かを指定.
+        x : float
+            取引数量.
+        price : float
+            取引価格.
         """
         pass

@@ -6,7 +6,7 @@ from configparser import ConfigParser
 EXCHANGER_CONFIG_PATH = './config.ini'
 
 
-def get_config(exchanger_name, config_name):
+def get_exchanger_config(exchanger_name, config_name):
     """
     各取引所の設定値を取得する.
 

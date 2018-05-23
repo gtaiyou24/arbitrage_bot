@@ -1,12 +1,13 @@
 """QUOINE取引所のクラス."""
 
 import time
-
 import jwt
-import pandas as pd
+import numpy as np
+
+
+from configs.exchanger_config import get_exchanger_config
 
 from .abstract_exchanger import AbstractExchanger
-from configs.exchanger_config import get_config
 
 
 class QuoineExchanger(AbstractExchanger):
@@ -24,8 +25,8 @@ class QuoineExchanger(AbstractExchanger):
         api_secret : str, default : None
         """
         self.api_url = 'https://api.quoine.com'
-        self.api_key = get_config(self.exchanger_name, 'api_key')
-        self.api_secret = get_config(self.exchanger_name, 'api_key')
+        self.api_key = get_exchanger_config(self.exchanger_name, 'api_key')
+        self.api_secret = get_exchanger_config(self.exchanger_name, 'api_secret')
         self.api_version = '2'
 
     def _headers(self, endpoint):
@@ -83,13 +84,14 @@ class QuoineExchanger(AbstractExchanger):
         ------
         {
             "bids": [
-                {"price": 1000000, "size": 0.02},
-                {"price": 9950000, "size": 0.05},
+                # [price, quantity]
+                [1000000, 0.02],
+                [9950000, 0.05],
                 ...
             ],
             "asks": [
-                {"price": 1005000, "size": 0.3},
-                {"price": 1060000, "size": 0.05},
+                [1005000, 0.3],
+                [1060000, 0.05],
                 ...
             ]
         }
@@ -104,13 +106,17 @@ class QuoineExchanger(AbstractExchanger):
         }
         response_dict = self._api_request(endpoint, 'GET', params, self._headers(endpoint))
 
+        # 価格,数量を文字型からfloat型へ変換する.
+        buy_price_level_arr = np.array(response_dict['buy_price_levels']).astype(float)
+        sell_price_levels_arr = np.array(response_dict['sell_price_levels']).astype(float)
+
+        # 価格をint型へ変換する.
+        buy_price_level_arr[:, 0].astype(int)
+        sell_price_levels_arr[:, 0].astype(int)
+
         board = {
-            "bids": list(
-                pd.DataFrame(response_dict['buy_price_levels'], columns=['price', 'size']).T.to_dict().values()
-            ),
-            "asks": list(
-                pd.DataFrame(response_dict['sell_price_levels'], columns=['price', 'size']).T.to_dict().values()
-            )
+            "bids": buy_price_level_arr.tolist(),
+            "asks": sell_price_levels_arr.tolist()
         }
         return board
 
@@ -149,4 +155,12 @@ class QuoineExchanger(AbstractExchanger):
             ...,
         ]
         """
+        pass
+
+    def calc_cash_trading_cost(product_code='BTC/JPY', side='maker', x=0.0, price=0.0, **params):
+        """現物取引による費用を算出."""
+        pass
+
+    def calc_margin_trading_cost(product_code='BTC/JPY', side='maker', x=0.0, price=0.0, **params):
+        """証拠金取引(信用取引)による費用を算出."""
         pass

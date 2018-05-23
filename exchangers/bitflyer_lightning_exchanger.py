@@ -6,9 +6,11 @@ import json
 import time
 import urllib
 
+import pandas as pd
+
 from .abstract_exchanger import AbstractExchanger
 
-from configs.exchanger_config import get_config
+from configs.exchanger_config import get_exchanger_config
 
 
 class BitFlyerLightningExchanger(AbstractExchanger):
@@ -26,8 +28,8 @@ class BitFlyerLightningExchanger(AbstractExchanger):
         api_secret : str, default : None
         """
         self.api_url = 'https://api.bitflyer.jp/v1'
-        self.api_key = get_config(self.exchanger_name, 'api_key')
-        self.api_secret = get_config(self.exchanger_name, 'api_key')
+        self.api_key = get_exchanger_config(self.exchanger_name, 'api_key')
+        self.api_secret = get_exchanger_config(self.exchanger_name, 'api_secret')
         self.api_version = None
 
     def _headers(self, endpoint=None, method='GET', params={}):
@@ -99,13 +101,14 @@ class BitFlyerLightningExchanger(AbstractExchanger):
         ------
         {
             "bids": [
-                {"price": 1000000, "size": 0.02},
-                {"price": 9950000, "size": 0.05},
+                # [price, quantity]
+                [1000000, 0.02],
+                [9950000, 0.05],
                 ...
             ],
             "asks": [
-                {"price": 1005000, "size": 0.3},
-                {"price": 1060000, "size": 0.05},
+                [1005000, 0.3],
+                [1060000, 0.05],
                 ...
             ]
         }
@@ -113,12 +116,18 @@ class BitFlyerLightningExchanger(AbstractExchanger):
         BITFLYER_LIGHTNING_PRODUCT_CODES = {
             'BTC/JPY': 'BTC_JPY',
         }
+
         product_code = BITFLYER_LIGHTNING_PRODUCT_CODES[product_code]
         endpoint = '/board'
         params = {'count': count}
         header = self._headers(endpoint, method='GET')
         response_dict = self._api_request(endpoint, 'GET', params, header)
-        return response_dict
+
+        board = {
+            "bids": pd.DataFrame(response_dict['bids']).values.tolist(),
+            "asks": pd.DataFrame(response_dict['asks']).values.tolist()
+        }
+        return board
 
     def get_ticker(self, product_code='BTC/JPY'):
         """
@@ -157,10 +166,10 @@ class BitFlyerLightningExchanger(AbstractExchanger):
         """
         pass
 
-    def buy(self, x, price, how):
-        """通貨の買い注文メソッド."""
+    def calc_cash_trading_cost(product_code='BTC/JPY', side='maker', x=0.0, price=0.0, **params):
+        """現物取引による費用を算出."""
         pass
 
-    def sell(self, x, price, how):
-        """通貨の売り注文メソッド."""
+    def calc_margin_trading_cost(product_code='BTC/JPY', side='maker', x=0.0, price=0.0, **params):
+        """証拠金取引(信用取引)による費用を算出."""
         pass
